@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+  <title>Developing an API with FastAPI and GraphQL </title>
+
+  <meta property="og:title" content="Developing an API with FastAPI and GraphQL">
+  <meta name="description" property="og:description" content="In this tutorial, you&#39;ll learn how to build a CRUD app with FastAPI and GraphQL.">
+  <meta name="keywords" content="fastapi, fastapi graphql, python fastapi, grapql fastapi, orator orm, fastapi graphene">
+
+  <meta property="og:image:alt" content="A white rectangle displaying the article title, &quot;Developing an API with FastAPI and GraphQL&quot;, and a byline featuring Oluwole Majiyagbe.">
+
+  <meta property="twitter:image:alt" content="A white rectangle displaying the article title, &quot;Developing an API with FastAPI and GraphQL&quot;, and a byline featuring Oluwole Majiyagbe.">
+
+  <!-- CSS Styles -->
+  <link href="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/all.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/main.500bbb62d3f4.css">
+  <link rel="stylesheet" href="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/pygments.7262fcc7e9ed.css">
+
+    
+  <link rel="stylesheet" href="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/pygments_error.bbadc7ab2566.css">
+    
+  <script charset="utf-8" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/button.e878ad6ba18f0bdda53d6861059b0edd.js"></script>
+</head>
+
+
+<body class=" page-blog page-blog-detail">
+
+<!-- Main Content -->
+
+<header class="hero blog-hero blog-detail-hero">
+  <div class="container">
+    <div class="row">
+      <div class="col blog-detail-header">
+        <h1>Developing an API with FastAPI and GraphQL</h1>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+<main>
+  <div class="container blog-container" style="padding-top: 0;">
+    <div class="row">
+      <div class="col col-12 col-lg-12">
+  <div class="blog-content long-content" data-local-nav-source="">
+    <p>In this tutorial, you'll learn how to build a CRUD app with <a href="https://fastapi.tiangolo.com/">FastAPI</a>, <a href="https://graphql.org/">GraphQL</a>, and <a href="https://orator-orm.com/">Orator ORM</a>.</p>
+<h2 class="toc-header">Contents</h2>
+
+<div class="toc">
+  <ul>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#objectives">Objectives</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#why-graphql">Why GraphQL?</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#project-setup">Project Setup</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#orator-orm">Orator ORM</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#graphene">Graphene</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#schema">Schema</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#validation-with-pydantic">Validation with pydantic</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#mutations">Mutations</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#queries">Queries</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#tests">Tests</a></li>
+    <li><a href="https://testdriven.io/blog/fastapi-graphql/#conclusion">Conclusion</a></li>
+  </ul>
+</div>
+<h2 id="objectives">Objectives</h2>
+<p>By the end of this tutorial, you will be able to:</p>
+  <ol>
+    <li>Explain why you may want to use GraphQL over REST</li>
+    <li>Use Orator ORM to interact with a Postgres database</li>
+    <li>Describe what Schemas, Mutations, and Queries are in GraphQL</li>
+    <li>Integrate GraphQL into a FastAPI app with Graphene</li>
+    <li>Test a GraphQL API with Graphene and pytest</li>
+  </ol>
+<h2 id="why-graphql">Why GraphQL?</h2>
+<p>(And why GraphQL over traditional REST?)</p>
+<p><a href="https://en.wikipedia.org/wiki/Representational_state_transfer">REST</a> is the de-facto standard for building web APIs. With REST, you have multiple endpoints for each CRUD operation: GET, POST, PUT, DELETE. Data is gathered by accessing a number of endpoints.</p>
+<p>For example, if you wanted to get a particular user's profile info along with their posts and relevant comments, you would need to call four different endpoints:</p>
+<ol>
+<li><code>/users/&lt;id&gt;</code> returns the initial user data</li>
+<li><code>/users/&lt;id&gt;/posts</code> returns all posts for a given user</li>
+<li><code>/users/&lt;post_id&gt;/comments</code> returns a list of comments per post</li>
+<li><code>/users/&lt;id&gt;/comments</code> returns a list of comments per user</li>
+</ol>
+<p>This can result in request <a href="https://stackoverflow.com/a/44568365">overfetching</a> since you'll probably have to get much more data than you need.</p>
+<p>Moreover, since one client may have much different needs than other clients, request overfetching and underfetching are common with REST.</p>
+<p><a href="https://graphql.org/">GraphQL</a>, meanwhile, is a query language for retrieving data from an API. Instead of having multiple endpoints, GraphQL is structured around a single endpoint whose <em>return value is dependent on what the client wants instead of what the endpoint returns</em>.</p>
+<p>In GraphQL, you would structure a query like so to obtain a user's profile, posts, and comments:</p>
+<div class="codehilite"><pre><span></span><code>query <span class="o">{</span>
+  User<span class="o">(</span>userId: <span class="m">2</span><span class="o">){</span>
+    name
+    posts <span class="o">{</span>
+      title
+      comments <span class="o">{</span>
+        body
+      <span class="o">}</span>
+    <span class="o">}</span>
+    comments <span class="o">{</span>
+      body
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>Voila! You get all the data in just one request with no overfetching since we specified exactly what we want.</p>
+<blockquote>
+<p>FastAPI supports GraphQL via <a href="https://www.starlette.io/graphql">Starlette</a> and <a href="https://graphene-python.org/">Graphene</a>. Starlette executes GraphQL queries in a separate thread by default when you don't use async request handlers!</p>
+</blockquote>
+<h2 id="project-setup">Project Setup</h2>
+<p>Create a directory to hold your project called "fastapi-graphql":</p>
+<div class="codehilite"><pre><span></span><code>$ mkdir fastapi-graphql
+$ <span class="nb">cd</span> fastapi-graphql
+</code></pre></div>
+
+<p>Create a virtual environment and activate it:</p>
+<div class="codehilite"><pre><span></span><code>$ python3.9 -m venv env
+$ <span class="nb">source</span> env/bin/activate
+
+<span class="o">(</span>env<span class="o">)</span>$
+</code></pre></div>
+
+<blockquote>
+<p>Feel free to make use of other virtual environment tools like <a href="https://python-poetry.org/">Poetry</a> or <a href="https://github.com/pypa/pipenv">Pipenv</a>.</p>
+</blockquote>
+<p>Create the following files in the "fastapi-graphql" directory:</p>
+<div class="codehilite"><pre><span></span><code>main.py
+db.py
+requirements.txt
+</code></pre></div>
+
+<p>Add the following requirements to <em>requirements.txt</em> file:</p>
+<div class="codehilite"><pre><span></span><code>fastapi==0.61.1
+uvicorn==0.12.2
+</code></pre></div>
+
+<p><a href="http://www.uvicorn.org/">Uvicorn</a> is an <a href="https://asgi.readthedocs.io/en/latest/">ASGI</a> (Asynchronous Server Gateway Interface) compatible server that will be used for standing up FastAPI.</p>
+<p>Install the dependencies:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ pip install -r requirements.txt
+</code></pre></div>
+
+<p>In the <em>main.py</em> file, add the following lines to kick-start the server:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+
+
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'/'</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">ping</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">'ping'</span><span class="p">:</span> <span class="s1">'pong'</span><span class="p">}</span>
+</code></pre></div>
+
+<p>To start the server, open your terminal, navigate to the project directory, and enter the following command:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ uvicorn main:app --reload
+</code></pre></div>
+
+<p>Navigate to <a href="http://localhost:8000/">http://localhost:8000</a> in your browser of choice. You should see the response:</p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="nt">"ping"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pong"</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+
+<p>You've successfully started up a simple FastAPI server. To see the beautiful <a href="https://fastapi.tiangolo.com/features/#automatic-docs">docs</a> FastAPI has for us, navigate to <a href="http://localhost:8000/docs">http://localhost:8000/docs</a>:</p>
+<p><img data-src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/swagger-docs.png" loading="lazy" class="lazyload" style="max-width:100%;" alt="Swagger Docs" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/swagger-docs.png"></p>
+<p>And <a href="http://localhost:8000/redocs">http://localhost:8000/redocs</a>:</p>
+<p><img data-src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/redocs.png" loading="lazy" class="lazyload" style="max-width:100%;" alt="Redoc Docs" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/redocs.png"></p>
+<h2 id="orator-orm">Orator ORM</h2>
+<h3 id="why-orator">Why Orator?</h3>
+<p>According to the <a href="https://orator-orm.com/docs/orm.html">docs</a>, Orator provides a simple <a href="https://www.quora.com/Is-there-something-for-Python-like-ActiveRecord-in-Ruby-Rails/answer/Michael-Herman-3">ActiveRecord</a> implementation for working with your databases. Each database table has a corresponding model that's used to interact with that table.</p>
+<p>It resembles other popular ActiveRecord implementations like Django's <a href="https://www.fullstackpython.com/django-orm.html">ORM</a>, Laravel's <a href="https://laravel.com/docs/eloquent">Eloquent</a>, AdonisJs' <a href="https://adonisjs.com/docs/4.0/lucid">Lucid</a>, and <a href="https://guides.rubyonrails.org/active_record_basics.html">Active Record</a> in Ruby On Rails. With support for MySQL, Postgres, and SQLite, it emphasizes <a href="https://en.wikipedia.org/wiki/Convention_over_configuration">convention over configuration</a>, which makes it easy to create models since you don't have to explicitly define every single aspect. Relationships are a breeze and very easy to handle as well.</p>
+<h3 id="postgres">Postgres</h3>
+<p>Next, <a href="https://www.postgresql.org/download/">download</a>, install, and run Postgres on your system.</p>
+<p>Add the appropriate dependencies to your <em>requirements.txt</em> file:</p>
+<div class="codehilite"><pre><span></span><code>orator==0.9.9
+psycopg2-binary==2.8.6
+</code></pre></div>
+
+<p>Install:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ pip install -r requirements.txt
+</code></pre></div>
+
+<p>Add the database config to the <em>db.py</em> file:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">orator</span> <span class="kn">import</span> <span class="n">DatabaseManager</span><span class="p">,</span> <span class="n">Schema</span><span class="p">,</span> <span class="n">Model</span>
+
+<span class="n">DATABASES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"postgres"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"driver"</span><span class="p">:</span> <span class="s2">"postgres"</span><span class="p">,</span>
+        <span class="s2">"host"</span><span class="p">:</span> <span class="s2">"localhost"</span><span class="p">,</span>
+        <span class="s2">"database"</span><span class="p">:</span> <span class="s2">"db_name"</span><span class="p">,</span>
+        <span class="s2">"user"</span><span class="p">:</span> <span class="s2">"db_user"</span><span class="p">,</span>
+        <span class="s2">"password"</span><span class="p">:</span> <span class="s2">"db_password"</span><span class="p">,</span>
+        <span class="s2">"prefix"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+        <span class="s2">"port"</span><span class="p">:</span> <span class="mi">5432</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">db</span> <span class="o">=</span> <span class="n">DatabaseManager</span><span class="p">(</span><span class="n">DATABASES</span><span class="p">)</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+<span class="n">Model</span><span class="o">.</span><span class="n">set_connection_resolver</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+</code></pre></div>
+
+<blockquote>
+<p>Make sure to update the <code>db_name</code>, <code>db_user</code>, and <code>db_password</code>.</p>
+</blockquote>
+<h3 id="models">Models</h3>
+<p>Next, let's create models for users, posts, and comments.</p>
+<p>Starting with users, create the model and the corresponding <a href="http://orator-orm.com/docs/migrations.html">migration</a>:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ orator make:model User -m
+</code></pre></div>
+
+<p>The <code>-m</code> flag creates a migration file. It does not apply it to the database, though.</p>
+<p>You should see something similar to:</p>
+<div class="codehilite"><pre><span></span><code>Model User successfully created.
+Created migration: 2020_10_26_191507_create_users_table.py
+</code></pre></div>
+
+<p>If all goes well, Orator will automatically create a "models" and "migrations" directories in your project's root directory:</p>
+<div class="codehilite"><pre><span></span><code>├── db.py
+├── main.py
+├── migrations
+│&nbsp;&nbsp; ├── 2020_10_26_191507_create_users_table.py
+│&nbsp;&nbsp; └── __init__.py
+├── models
+│&nbsp;&nbsp; ├── __init__.py
+│&nbsp;&nbsp; └── user.py
+└── requirements.txt
+</code></pre></div>
+
+<p>For the user, let's add the following details:</p>
+<ul>
+<li>Name</li>
+<li>Address</li>
+<li>Phone Number</li>
+<li>Sex</li>
+</ul>
+<p>Take note of the migration file. You should see the following:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">orator.migrations</span> <span class="kn">import</span> <span class="n">Migration</span>
+
+
+<span class="k">class</span> <span class="nc">CreateUsersTable</span><span class="p">(</span><span class="n">Migration</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Run the migrations.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'users'</span><span class="p">)</span> <span class="k">as</span> <span class="n">table</span><span class="p">:</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">increments</span><span class="p">(</span><span class="s1">'id'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">timestamps</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">down</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Revert the migrations.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">'users'</span><span class="p">)</span>
+</code></pre></div>
+
+<p>We just need to concern ourselves with he <code>up</code> method. So, add the following lines immediately after the <code>table.increments(‘id')</code> line:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">table</span><span class="o">.</span><span class="n">string</span><span class="p">(</span><span class="s1">'name'</span><span class="p">)</span>
+<span class="n">table</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">'address'</span><span class="p">)</span>
+<span class="n">table</span><span class="o">.</span><span class="n">string</span><span class="p">(</span><span class="s1">'phone_number'</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
+<span class="n">table</span><span class="o">.</span><span class="n">enum</span><span class="p">(</span><span class="s1">'sex'</span><span class="p">,</span> <span class="p">[</span><span class="s1">'male'</span><span class="p">,</span> <span class="s1">'female'</span><span class="p">])</span>
+</code></pre></div>
+
+<p>Now your migration file should look like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">orator.migrations</span> <span class="kn">import</span> <span class="n">Migration</span>
+
+
+<span class="k">class</span> <span class="nc">CreateUsersTable</span><span class="p">(</span><span class="n">Migration</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Run the migrations.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'users'</span><span class="p">)</span> <span class="k">as</span> <span class="n">table</span><span class="p">:</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">increments</span><span class="p">(</span><span class="s1">'id'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">string</span><span class="p">(</span><span class="s1">'name'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">'address'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">string</span><span class="p">(</span><span class="s1">'phone_number'</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">enum</span><span class="p">(</span><span class="s1">'sex'</span><span class="p">,</span> <span class="p">[</span><span class="s1">'male'</span><span class="p">,</span> <span class="s1">'female'</span><span class="p">])</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">timestamps</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">down</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Revert the migrations.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">'users'</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Create the model and migration files for <code>Post</code> and <code>Comments</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ orator make:model Post -m
+<span class="o">(</span>env<span class="o">)</span>$ orator make:model Comments -m
+</code></pre></div>
+
+<p>Next, we need to update the files.</p>
+<p><em>posts</em>:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">orator.migrations</span> <span class="kn">import</span> <span class="n">Migration</span>
+
+
+<span class="k">class</span> <span class="nc">CreatePostsTable</span><span class="p">(</span><span class="n">Migration</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Run the migrations.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'posts'</span><span class="p">)</span> <span class="k">as</span> <span class="n">table</span><span class="p">:</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">increments</span><span class="p">(</span><span class="s1">'id'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">integer</span><span class="p">(</span><span class="s1">'user_id'</span><span class="p">)</span><span class="o">.</span><span class="n">unsigned</span><span class="p">()</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">foreign</span><span class="p">(</span><span class="s1">'user_id'</span><span class="p">)</span><span class="o">.</span><span class="n">references</span><span class="p">(</span><span class="s1">'id'</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">'users'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">string</span><span class="p">(</span><span class="s1">'title'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">'body'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">timestamps</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">down</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Revert the migrations.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">'posts'</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Take note of:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">table</span><span class="o">.</span><span class="n">integer</span><span class="p">(</span><span class="s1">'user_id'</span><span class="p">)</span><span class="o">.</span><span class="n">unsigned</span><span class="p">()</span>
+<span class="n">table</span><span class="o">.</span><span class="n">foreign</span><span class="p">(</span><span class="s1">'user_id'</span><span class="p">)</span><span class="o">.</span><span class="n">references</span><span class="p">(</span><span class="s1">'id'</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">'users'</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This will create a <a href="https://orator-orm.com/docs/0.8/schema_builder.html#foreign-keys">foreign key</a>: The <code>user</code> column references the <code>id</code> column on the users table.</p>
+<p><em>comments</em>:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">orator.migrations</span> <span class="kn">import</span> <span class="n">Migration</span>
+
+
+<span class="k">class</span> <span class="nc">CreateCommentsTable</span><span class="p">(</span><span class="n">Migration</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Run the migrations.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'comments'</span><span class="p">)</span> <span class="k">as</span> <span class="n">table</span><span class="p">:</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">increments</span><span class="p">(</span><span class="s1">'id'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">integer</span><span class="p">(</span><span class="s1">'user_id'</span><span class="p">)</span><span class="o">.</span><span class="n">unsigned</span><span class="p">()</span><span class="o">.</span><span class="n">nullable</span><span class="p">()</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">foreign</span><span class="p">(</span><span class="s1">'user_id'</span><span class="p">)</span><span class="o">.</span><span class="n">references</span><span class="p">(</span><span class="s1">'id'</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">'users'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">integer</span><span class="p">(</span><span class="s1">'post_id'</span><span class="p">)</span><span class="o">.</span><span class="n">unsigned</span><span class="p">()</span><span class="o">.</span><span class="n">nullable</span><span class="p">()</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">foreign</span><span class="p">(</span><span class="s1">'post_id'</span><span class="p">)</span><span class="o">.</span><span class="n">references</span><span class="p">(</span><span class="s1">'id'</span><span class="p">)</span><span class="o">.</span><span class="n">on</span><span class="p">(</span><span class="s1">'posts'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="s1">'body'</span><span class="p">)</span>
+            <span class="n">table</span><span class="o">.</span><span class="n">timestamps</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">down</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">"""</span>
+<span class="sd">        Revert the migrations.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">'comments'</span><span class="p">)</span>
+</code></pre></div>
+
+<p>To apply the migration, run:</p>
+<div class="codehilite"><pre><span></span><code>$ orator migrate -c db.py
+</code></pre></div>
+
+<p>This should create a <code>users</code>, <code>posts</code> and <code>comments</code> table in the database:</p>
+<div class="codehilite"><pre><span></span><code>Are you sure you want to proceed with the migration?  <span class="o">(</span>yes/no<span class="o">)</span> <span class="o">[</span>no<span class="o">]</span> y
+
+Migration table created successfully
+<span class="o">[</span>OK<span class="o">]</span> Migrated 2020_10_26_191507_create_users_table
+<span class="o">[</span>OK<span class="o">]</span> Migrated 2020_10_26_192018_create_posts_table
+<span class="o">[</span>OK<span class="o">]</span> Migrated 2020_10_26_192024_create_comments_table
+</code></pre></div>
+
+<blockquote>
+<p>If you see a configuration error message, make sure the database details in your <em>db.py</em> file are correct.</p>
+</blockquote>
+<p>Next, to ensure our models use the config specified in <em>db.py</em>, update the <em>user.py</em> file in the "models" directory:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">orator.orm</span> <span class="kn">import</span> <span class="n">has_many</span>
+
+<span class="kn">from</span> <span class="nn">db</span> <span class="kn">import</span> <span class="n">Model</span>
+
+
+<span class="k">class</span> <span class="nc">User</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="nd">@has_many</span>
+    <span class="k">def</span> <span class="nf">posts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.post</span> <span class="kn">import</span> <span class="n">Post</span>
+
+        <span class="k">return</span> <span class="n">Post</span>
+
+    <span class="nd">@has_many</span>
+    <span class="k">def</span> <span class="nf">comments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.comment</span> <span class="kn">import</span> <span class="n">Comments</span>
+
+        <span class="k">return</span> <span class="n">Comments</span>
+</code></pre></div>
+
+<p>The <a href="https://orator-orm.com/docs/0.9/orm.html#one-to-many">has_many</a> decorator specifies a one to many relationship. Here we are saying a user has a one to many relationship with posts and comments.</p>
+<p>Update the <code>Post</code> and <code>Comments</code> models as well.</p>
+<p><em>post.py</em>:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">orator.orm</span> <span class="kn">import</span> <span class="n">has_many</span>
+
+<span class="kn">from</span> <span class="nn">db</span> <span class="kn">import</span> <span class="n">Model</span>
+
+
+<span class="k">class</span> <span class="nc">Post</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="nd">@has_many</span>
+    <span class="k">def</span> <span class="nf">comments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.comment</span> <span class="kn">import</span> <span class="n">Comments</span>
+
+        <span class="k">return</span> <span class="n">Comments</span>
+</code></pre></div>
+
+<p><em>comment.py</em>:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">db</span> <span class="kn">import</span> <span class="n">Model</span>
+
+
+<span class="k">class</span> <span class="nc">Comments</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
+
+    <span class="k">pass</span>
+</code></pre></div>
+
+<h2 id="graphene">Graphene</h2>
+<p>To make use of GraphQL, we'll need to first install <a href="https://graphene-python.org/">Graphene</a>, a Python library that allows us to build GraphQL APIs.</p>
+<p>Add it to your <em>requirement.txt</em> file:</p>
+<div class="codehilite"><pre><span></span><code>graphene==2.1.8
+</code></pre></div>
+
+<p>Install:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ pip install -r requirements.txt
+</code></pre></div>
+
+<h2 id="schema">Schema</h2>
+<p>A <a href="https://docs.graphene-python.org/en/latest/types/schema/">Schema</a> is the building block for every GraphQL application. It serves as the core for the application gluing together all other parts, like Mutations and Queries.</p>
+<p>Create a new file called <em>schema.py</em> in the project root:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">graphene</span>
+
+
+<span class="k">class</span> <span class="nc">Query</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">ObjectType</span><span class="p">):</span>
+    <span class="n">say_hello</span> <span class="o">=</span> <span class="n">graphene</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">default_value</span><span class="o">=</span><span class="s1">'Test Driven'</span><span class="p">))</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">resolve_say_hello</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">'Hello </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">'</span>
+</code></pre></div>
+
+<p>Update <em>main.py</em>:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">graphene</span>
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span>
+<span class="kn">from</span> <span class="nn">starlette.graphql</span> <span class="kn">import</span> <span class="n">GraphQLApp</span>
+
+<span class="kn">from</span> <span class="nn">schema</span> <span class="kn">import</span> <span class="n">Query</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+
+<span class="n">app</span><span class="o">.</span><span class="n">add_route</span><span class="p">(</span><span class="s1">'/graphql'</span><span class="p">,</span> <span class="n">GraphQLApp</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">Schema</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">Query</span><span class="p">)))</span>
+
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'/'</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">ping</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">'ping'</span><span class="p">:</span> <span class="s1">'pong'</span><span class="p">}</span>
+</code></pre></div>
+
+<p>Note that we passed in Starlette's <a href="https://www.starlette.io/graphql">GraphQLApp</a>, which ties the Schema to the route.</p>
+<p>Start up your server:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ uvicorn main:app --reload
+</code></pre></div>
+
+<p>Navigate to <a href="http://localhost:8000/graphql">http://localhost:8000/graphql</a> . You should see the <a href="https://github.com/graphql/graphql-playground">GraphQL Playground</a>.</p>
+<p>Type in a quick query to make sure all is well:</p>
+<div class="codehilite"><pre><span></span><code>query <span class="o">{</span>
+  sayHello<span class="o">(</span>name: <span class="s2">"Michael"</span><span class="o">)</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>You should see:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">{</span>
+  <span class="s2">"data"</span>: <span class="o">{</span>
+    <span class="s2">"sayHello"</span>: <span class="s2">"Hello Michael"</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p><img data-src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/hello-world.png" loading="lazy" class="lazyload" style="max-width:100%;" alt="Hello GraphQL" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/hello-world.png"></p>
+<p>With that, let's add the basic CRUD operations for creating, reading, updating, and deleting users from the database.</p>
+<h2 id="validation-with-pydantic">Validation with pydantic</h2>
+<p>We can still use pydantic <a href="https://pydantic-docs.helpmanual.io/usage/models/">Models</a> for validation with <a href="https://github.com/graphql-python/graphene-pydantic">graphene-pydantic</a>.</p>
+<p>Add the dependency:</p>
+<div class="codehilite"><pre><span></span><code>graphene-pydantic==0.1.0
+</code></pre></div>
+
+<p>Install:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ pip install -r requirements.txt
+</code></pre></div>
+
+<p>Create the base pydantic Model along with the input and output objects in a new file called <em>serializers.py</em>:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">graphene_pydantic</span> <span class="kn">import</span> <span class="n">PydanticInputObjectType</span><span class="p">,</span> <span class="n">PydanticObjectType</span>
+<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+
+
+<span class="k">class</span> <span class="nc">CommentsModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">post_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">body</span><span class="p">:</span> <span class="nb">str</span>
+
+
+<span class="k">class</span> <span class="nc">PostModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">body</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">comments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">CommentsModel</span><span class="p">]]</span>
+
+
+<span class="k">class</span> <span class="nc">UserModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">address</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">phone_number</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">sex</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">posts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">PostModel</span><span class="p">]]</span>
+    <span class="n">comments</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">CommentsModel</span><span class="p">]]</span>
+
+
+<span class="k">class</span> <span class="nc">CommentGrapheneModel</span><span class="p">(</span><span class="n">PydanticObjectType</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">CommentsModel</span>
+
+
+<span class="k">class</span> <span class="nc">PostGrapheneModel</span><span class="p">(</span><span class="n">PydanticObjectType</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">PostModel</span>
+
+
+<span class="k">class</span> <span class="nc">UserGrapheneModel</span><span class="p">(</span><span class="n">PydanticObjectType</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">UserModel</span>
+
+
+<span class="k">class</span> <span class="nc">CommentGrapheneInputModel</span><span class="p">(</span><span class="n">PydanticInputObjectType</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">CommentsModel</span>
+        <span class="n">exclude_fields</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'id'</span><span class="p">,</span> <span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">PostGrapheneInputModel</span><span class="p">(</span><span class="n">PydanticInputObjectType</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">PostModel</span>
+        <span class="n">exclude_fields</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'id'</span><span class="p">,</span> <span class="s1">'comments'</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">UserGrapheneInputModel</span><span class="p">(</span><span class="n">PydanticInputObjectType</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Meta</span><span class="p">:</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">UserModel</span>
+        <span class="n">exclude_fields</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'id'</span><span class="p">,</span> <span class="s1">'posts'</span><span class="p">,</span> <span class="s1">'comments'</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The <code>PydanticInputObjectType</code> and <code>PydanticObjectType</code> classes tie the <a href="https://github.com/graphql-python/graphene-pydantic#input-object-types">input</a> and outputs together respectively with the pydantic Model ensuring that the inputs and output follow the <code>UserModel</code>, <code>PostModel</code>, and <code>CommentsModel</code> models.</p>
+<p>Take Note of the <code>exclude_fields</code> in <code>Meta</code>. In each, we removed the autogenerated <code>id</code> from the validation.</p>
+<h2 id="mutations">Mutations</h2>
+<p><a href="https://docs.graphene-python.org/en/latest/types/mutations/">Mutations</a> are used in GraphQL to modify data. So, they are used for creating, updating, and deleting data.</p>
+<p>Let's use a mutation to create a <code>User</code>, <code>Post</code>, and <code>Comment</code> object and save it in the database.</p>
+<p>Add the following Code to the <em>schema.py</em> file:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">graphene</span>
+
+<span class="kn">from</span> <span class="nn">serializers</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">UserGrapheneInputModel</span><span class="p">,</span>
+    <span class="n">UserGrapheneModel</span><span class="p">,</span>
+    <span class="n">PostGrapheneInputModel</span><span class="p">,</span>
+    <span class="n">PostGrapheneModel</span><span class="p">,</span>
+    <span class="n">CommentGrapheneInputModel</span><span class="p">,</span>
+    <span class="n">CommentGrapheneModel</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">models.comment</span> <span class="kn">import</span> <span class="n">Comments</span>
+<span class="kn">from</span> <span class="nn">models.post</span> <span class="kn">import</span> <span class="n">Post</span>
+<span class="kn">from</span> <span class="nn">models.user</span> <span class="kn">import</span> <span class="n">User</span>
+
+
+<span class="k">class</span> <span class="nc">Query</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">ObjectType</span><span class="p">):</span>
+    <span class="n">say_hello</span> <span class="o">=</span> <span class="n">graphene</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">default_value</span><span class="o">=</span><span class="s1">'Test Driven'</span><span class="p">))</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">resolve_say_hello</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">'Hello </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">'</span>
+
+
+<span class="k">class</span> <span class="nc">CreateUser</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">Mutation</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Arguments</span><span class="p">:</span>
+        <span class="n">user_details</span> <span class="o">=</span> <span class="n">UserGrapheneInputModel</span><span class="p">()</span>
+
+    <span class="n">Output</span> <span class="o">=</span> <span class="n">UserGrapheneModel</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">mutate</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">user_details</span><span class="p">):</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="p">()</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">user_details</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">address</span> <span class="o">=</span> <span class="n">user_details</span><span class="o">.</span><span class="n">address</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">phone_number</span> <span class="o">=</span> <span class="n">user_details</span><span class="o">.</span><span class="n">phone_number</span>
+        <span class="n">user</span><span class="o">.</span><span class="n">sex</span> <span class="o">=</span> <span class="n">user_details</span><span class="o">.</span><span class="n">sex</span>
+
+        <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">user</span>
+
+
+<span class="k">class</span> <span class="nc">CreatePost</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">Mutation</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Arguments</span><span class="p">:</span>
+        <span class="n">post_details</span> <span class="o">=</span> <span class="n">PostGrapheneInputModel</span><span class="p">()</span>
+
+    <span class="n">Output</span> <span class="o">=</span> <span class="n">PostGrapheneModel</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">mutate</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">post_details</span><span class="p">):</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">find_or_fail</span><span class="p">(</span><span class="n">post_details</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span>
+        <span class="n">post</span> <span class="o">=</span> <span class="n">Post</span><span class="p">()</span>
+        <span class="n">post</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">post_details</span><span class="o">.</span><span class="n">title</span>
+        <span class="n">post</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="n">post_details</span><span class="o">.</span><span class="n">body</span>
+
+        <span class="n">user</span><span class="o">.</span><span class="n">posts</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">post</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">post</span>
+
+
+<span class="k">class</span> <span class="nc">CreateComment</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">Mutation</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Arguments</span><span class="p">:</span>
+        <span class="n">comment_details</span> <span class="o">=</span> <span class="n">CommentGrapheneInputModel</span><span class="p">()</span>
+
+    <span class="n">Output</span> <span class="o">=</span> <span class="n">CommentGrapheneModel</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">mutate</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">comment_details</span><span class="p">):</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">find_or_fail</span><span class="p">(</span><span class="n">comment_details</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span>
+        <span class="n">post</span> <span class="o">=</span> <span class="n">Post</span><span class="o">.</span><span class="n">find_or_fail</span><span class="p">(</span><span class="n">comment_details</span><span class="o">.</span><span class="n">post_id</span><span class="p">)</span>
+
+        <span class="n">comment</span> <span class="o">=</span> <span class="n">Comments</span><span class="p">()</span>
+        <span class="n">comment</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="n">comment_details</span><span class="o">.</span><span class="n">body</span>
+
+        <span class="n">user</span><span class="o">.</span><span class="n">comments</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+        <span class="n">post</span><span class="o">.</span><span class="n">comments</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">comment</span>
+
+
+<span class="k">class</span> <span class="nc">Mutation</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">ObjectType</span><span class="p">):</span>
+    <span class="n">create_user</span> <span class="o">=</span> <span class="n">CreateUser</span><span class="o">.</span><span class="n">Field</span><span class="p">()</span>
+    <span class="n">create_post</span> <span class="o">=</span> <span class="n">CreatePost</span><span class="o">.</span><span class="n">Field</span><span class="p">()</span>
+    <span class="n">create_comment</span> <span class="o">=</span> <span class="n">CreateComment</span><span class="o">.</span><span class="n">Field</span><span class="p">()</span>
+</code></pre></div>
+
+<p>For each of the classes -- <code>CreateUser</code>, <code>CreatePost</code>, and <code>CreateComment</code> -- we defined a <code>mutate</code> method, which is applied when the Mutation is called. This is required.</p>
+<p>Update your <em>main.py</em> file as well:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">graphene</span>
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span>
+<span class="kn">from</span> <span class="nn">starlette.graphql</span> <span class="kn">import</span> <span class="n">GraphQLApp</span>
+
+<span class="kn">from</span> <span class="nn">schema</span> <span class="kn">import</span> <span class="n">Query</span><span class="p">,</span> <span class="n">Mutation</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+
+<span class="n">app</span><span class="o">.</span><span class="n">add_route</span><span class="p">(</span><span class="s1">'/graphql'</span><span class="p">,</span> <span class="n">GraphQLApp</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">Schema</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">Query</span><span class="p">,</span> <span class="n">mutation</span><span class="o">=</span><span class="n">Mutation</span><span class="p">)))</span>
+
+<span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'/'</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">ping</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">'ping'</span><span class="p">:</span> <span class="s1">'pong'</span><span class="p">}</span>
+</code></pre></div>
+
+<p>Fire up Uvicorn again. Reload your browser and within the GraphQL Playground at <a href="http://localhost:8000/graphql">http://localhost:8000/graphql</a>, execute the <code>createUser</code> mutation:</p>
+<div class="codehilite"><pre><span></span><code>mutation createUser <span class="o">{</span>
+  createUser<span class="o">(</span>userDetails: <span class="o">{</span>
+    name: <span class="s2">"John Doe"</span>,
+    address: <span class="s2">"Some address"</span>,
+    phoneNumber: <span class="s2">"12345678"</span>,
+    sex: <span class="s2">"male"</span>
+  <span class="o">})</span>
+  <span class="o">{</span>
+    id
+    name
+    posts <span class="o">{</span>
+      body
+      comments <span class="o">{</span>
+        body
+      <span class="o">}</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>A user object should be returned to you:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">{</span>
+  <span class="s2">"data"</span>: <span class="o">{</span>
+    <span class="s2">"createUser"</span>: <span class="o">{</span>
+      <span class="s2">"id"</span>: <span class="m">1</span>,
+      <span class="s2">"name"</span>: <span class="s2">"John Doe"</span>,
+      <span class="s2">"posts"</span>: <span class="o">[]</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p><img data-src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/create-user.png" loading="lazy" class="lazyload" style="max-width:100%;" alt="Create User" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/create-user.png"></p>
+<p>Execute the <code>createPost</code> mutation also to create a new post:</p>
+<div class="codehilite"><pre><span></span><code>mutation createPost <span class="o">{</span>
+  createPost<span class="o">(</span>postDetails: <span class="o">{</span>
+    userId: <span class="m">2</span>,
+    title: <span class="s2">"My first Post"</span>,
+    body: <span class="s2">"This is a Post about myself"</span>
+  <span class="o">})</span>
+  <span class="o">{</span>
+    id
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>You should see:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">{</span>
+  <span class="s2">"data"</span>: <span class="o">{</span>
+    <span class="s2">"createPost"</span>: <span class="o">{</span>
+      <span class="s2">"id"</span>: <span class="m">1</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p><img data-src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/create-post.png" loading="lazy" class="lazyload" style="max-width:100%;" alt="Create Post" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/create-post.png"></p>
+<p>Finally, execute the <code>createComment</code> mutation to create a new comment:</p>
+<div class="codehilite"><pre><span></span><code>mutation createComment <span class="o">{</span>
+  createComment<span class="o">(</span>commentDetails: <span class="o">{</span>
+    userId: <span class="m">2</span>,
+    postId: <span class="m">1</span>,
+    body: <span class="s2">"Another Comment"</span>
+  <span class="o">})</span>
+  <span class="o">{</span>
+    id
+    body
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p><img data-src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/create-comment.png" loading="lazy" class="lazyload" style="max-width:100%;" alt="Create Comment" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/create-comment.png"></p>
+<p><img data-src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/create-comment-2.png" loading="lazy" class="lazyload" style="max-width:100%;" alt="Create Comment" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/create-comment-2.png"></p>
+<h2 id="queries">Queries</h2>
+<p>To retrieve data, as a list or a single object, GraphQL provides us with a Query.</p>
+<p>Update the <code>Query</code> class in <em>schema.py</em>:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">Query</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">ObjectType</span><span class="p">):</span>
+    <span class="n">say_hello</span> <span class="o">=</span> <span class="n">graphene</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">default_value</span><span class="o">=</span><span class="s1">'Test Driven'</span><span class="p">))</span>
+    <span class="n">list_users</span> <span class="o">=</span> <span class="n">graphene</span><span class="o">.</span><span class="n">List</span><span class="p">(</span><span class="n">UserGrapheneModel</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">resolve_say_hello</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">'Hello </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">'</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">resolve_list_users</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">User</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+</code></pre></div>
+
+<p>Going back to the GraphQL Playground, execute the following query to return a list of users:</p>
+<div class="codehilite"><pre><span></span><code>query getAllUsers <span class="o">{</span>
+  listUsers <span class="o">{</span>
+    id
+    name
+    posts <span class="o">{</span>
+      title
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>Results:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">{</span>
+  <span class="s2">"data"</span>: <span class="o">{</span>
+    <span class="s2">"listUsers"</span>: <span class="o">[</span>
+      <span class="o">{</span>
+        <span class="s2">"id"</span>: <span class="m">2</span>,
+        <span class="s2">"name"</span>: <span class="s2">"John Doe"</span>,
+        <span class="s2">"posts"</span>: <span class="o">[</span>
+          <span class="o">{</span>
+            <span class="s2">"title"</span>: <span class="s2">"My first Post"</span>
+          <span class="o">}</span>
+        <span class="o">]</span>
+      <span class="o">}</span>
+    <span class="o">]</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>To retrieve a single user, update the <code>Query</code> class again:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">Query</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">ObjectType</span><span class="p">):</span>
+    <span class="n">say_hello</span> <span class="o">=</span> <span class="n">graphene</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">default_value</span><span class="o">=</span><span class="s1">'Test Driven'</span><span class="p">))</span>
+    <span class="n">list_users</span> <span class="o">=</span> <span class="n">graphene</span><span class="o">.</span><span class="n">List</span><span class="p">(</span><span class="n">UserGrapheneModel</span><span class="p">)</span>
+    <span class="n">get_single_user</span> <span class="o">=</span> <span class="n">graphene</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">UserGrapheneModel</span><span class="p">,</span> <span class="n">user_id</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">NonNull</span><span class="p">(</span><span class="n">graphene</span><span class="o">.</span><span class="n">Int</span><span class="p">))</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">resolve_say_hello</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">'Hello </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">'</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">resolve_list_users</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">User</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">resolve_get_single_user</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">user_id</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">User</span><span class="o">.</span><span class="n">find_or_fail</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+</code></pre></div>
+
+<blockquote>
+<p>Orator has a built-in <code>find_or_fail</code> function which will raise an exception if an invalid ID is passed to it.</p>
+</blockquote>
+<p>Let’s run the <code>getSingleUser</code> query with a correct ID:</p>
+<div class="codehilite"><pre><span></span><code>query getUser <span class="o">{</span>
+  getSingleUser<span class="o">(</span>userId: <span class="m">2</span><span class="o">)</span> <span class="o">{</span>
+    name
+    posts <span class="o">{</span>
+      title
+      comments <span class="o">{</span>
+        body
+      <span class="o">}</span>
+    <span class="o">}</span>
+    comments <span class="o">{</span>
+      body
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>The query is expected to return a list of posts which in turn should contain a list of comments for every post object:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">{</span>
+  <span class="s2">"data"</span>: <span class="o">{</span>
+    <span class="s2">"getSingleUser"</span>: <span class="o">{</span>
+      <span class="s2">"name"</span>: <span class="s2">"John Doe"</span>,
+      <span class="s2">"posts"</span>: <span class="o">[</span>
+        <span class="o">{</span>
+          <span class="s2">"title"</span>: <span class="s2">"My first Post"</span>,
+          <span class="s2">"comments"</span>: <span class="o">[</span>
+            <span class="o">{</span>
+              <span class="s2">"body"</span>: <span class="s2">"Another Comment"</span>
+            <span class="o">}</span>,
+            <span class="o">{</span>
+              <span class="s2">"body"</span>: <span class="s2">"Another Comment"</span>
+            <span class="o">}</span>
+          <span class="o">]</span>
+        <span class="o">}</span>
+      <span class="o">]</span>,
+      <span class="s2">"comments"</span>: <span class="o">[</span>
+        <span class="o">{</span>
+          <span class="s2">"body"</span>: <span class="s2">"Another Comment"</span>
+        <span class="o">}</span>,
+        <span class="o">{</span>
+          <span class="s2">"body"</span>: <span class="s2">"Another Comment"</span>
+        <span class="o">}</span>
+      <span class="o">]</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>If you do not need the posts or comments, you can just remove the following block in the query:</p>
+<div class="codehilite"><pre><span></span><code>query getUser <span class="o">{</span>
+  getSingleUser<span class="o">(</span>userId: <span class="m">2</span><span class="o">)</span> <span class="o">{</span>
+    name
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>Results:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">{</span>
+  <span class="s2">"data"</span>: <span class="o">{</span>
+    <span class="s2">"getSingleUser"</span>: <span class="o">{</span>
+      <span class="s2">"name"</span>: <span class="s2">"John Doe"</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>Try with incorrect user ID:</p>
+<div class="codehilite"><pre><span></span><code>query getUser <span class="o">{</span>
+  getSingleUser<span class="o">(</span>userId: <span class="m">5999</span><span class="o">)</span> <span class="o">{</span>
+    name
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p>It should return an error:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">{</span>
+  <span class="s2">"data"</span>: <span class="o">{</span>
+    <span class="s2">"getSingleUser"</span>: null
+  <span class="o">}</span>,
+  <span class="s2">"errors"</span>: <span class="o">[</span>
+    <span class="o">{</span>
+      <span class="s2">"message"</span>: <span class="s2">"No query results found for model [User]"</span>,
+      <span class="s2">"locations"</span>: <span class="o">[</span>
+        <span class="o">{</span>
+          <span class="s2">"line"</span>: <span class="m">2</span>,
+          <span class="s2">"column"</span>: <span class="m">3</span>
+        <span class="o">}</span>
+      <span class="o">]</span>,
+      <span class="s2">"path"</span>: <span class="o">[</span>
+        <span class="s2">"getSingleUser"</span>
+      <span class="o">]</span>
+    <span class="o">}</span>
+  <span class="o">]</span>
+<span class="o">}</span>
+</code></pre></div>
+
+<p><img data-src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/invalid-user.png" loading="lazy" class="lazyload" style="max-width:100%;" alt="Invalid User" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/invalid-user.png"></p>
+<p>Notice how exceptions are styled as messages.</p>
+<h2 id="tests">Tests</h2>
+<p>Graphene provides a <a href="https://docs.graphene-python.org/en/latest/testing/#test-client">test client</a> for creating a dummy GraphQL client for testing a Graphene app.</p>
+<p>We'll be using pytest so add the dependency to your requirements file:</p>
+<div class="codehilite"><pre><span></span><code>pytest==6.1.1
+</code></pre></div>
+
+<p>Install:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ pip install -r requirements.txt
+</code></pre></div>
+
+<p>Next, create a "test" folder, and in that folder add a <em>conftest.py</em> file:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">pytest</span>
+<span class="kn">from</span> <span class="nn">orator</span> <span class="kn">import</span> <span class="n">DatabaseManager</span><span class="p">,</span> <span class="n">Model</span><span class="p">,</span> <span class="n">Schema</span>
+<span class="kn">from</span> <span class="nn">orator.migrations</span> <span class="kn">import</span> <span class="n">DatabaseMigrationRepository</span><span class="p">,</span> <span class="n">Migrator</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">autouse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">setup_database</span><span class="p">():</span>
+    <span class="n">DATABASES</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"sqlite"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"driver"</span><span class="p">:</span> <span class="s2">"sqlite"</span><span class="p">,</span>
+            <span class="s2">"database"</span><span class="p">:</span> <span class="s2">"test.db"</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="n">db</span> <span class="o">=</span> <span class="n">DatabaseManager</span><span class="p">(</span><span class="n">DATABASES</span><span class="p">)</span>
+    <span class="n">Schema</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+
+    <span class="n">Model</span><span class="o">.</span><span class="n">set_connection_resolver</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+
+    <span class="n">repository</span> <span class="o">=</span> <span class="n">DatabaseMigrationRepository</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s2">"migrations"</span><span class="p">)</span>
+    <span class="n">migrator</span> <span class="o">=</span> <span class="n">Migrator</span><span class="p">(</span><span class="n">repository</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">repository</span><span class="o">.</span><span class="n">repository_exists</span><span class="p">():</span>
+        <span class="n">repository</span><span class="o">.</span><span class="n">create_repository</span><span class="p">()</span>
+
+    <span class="n">migrator</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="s2">"migrations"</span><span class="p">)</span>
+    <span class="n">migrator</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"migrations"</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Here, we defined our test database settings and applied the migrations. We used an <a href="https://docs.pytest.org/en/stable/fixture.html#autouse-fixtures-xunit-setup-on-steroids">Autouse</a> fixture so that it is invoked automatically before each test to ensure that a clean version of the database is used for every test.</p>
+<p>Add another fixture for creating a Graphene test client:</p>
+<div class="codehilite"><pre><span></span><code><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"module"</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">client</span><span class="p">():</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">Schema</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">Query</span><span class="p">,</span> <span class="n">mutation</span><span class="o">=</span><span class="n">Mutation</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">client</span>
+</code></pre></div>
+
+<p>Add the appropriate imports:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">graphene</span>
+<span class="kn">from</span> <span class="nn">graphene.test</span> <span class="kn">import</span> <span class="n">Client</span>
+
+<span class="kn">from</span> <span class="nn">schema</span> <span class="kn">import</span> <span class="n">Query</span><span class="p">,</span> <span class="n">Mutation</span>
+</code></pre></div>
+
+<p>Next, add fixtures for creating a user, post, and comments:</p>
+<div class="codehilite"><pre><span></span><code><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"function"</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">user</span><span class="p">():</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="p">()</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"John Doe"</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">address</span> <span class="o">=</span> <span class="s2">"United States of Nigeria"</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">phone_number</span> <span class="o">=</span> <span class="mi">123456789</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">sex</span> <span class="o">=</span> <span class="s2">"male"</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">user</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"function"</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="n">user</span><span class="p">):</span>
+    <span class="n">post</span> <span class="o">=</span> <span class="n">Post</span><span class="p">()</span>
+    <span class="n">post</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="s2">"Test Title"</span>
+    <span class="n">post</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="s2">"this is the post body and can be as long as possible"</span>
+
+    <span class="n">user</span><span class="o">.</span><span class="n">posts</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">post</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">post</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"function"</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">comment</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">post</span><span class="p">):</span>
+    <span class="n">comment</span> <span class="o">=</span> <span class="n">Comments</span><span class="p">()</span>
+    <span class="n">comment</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="s2">"This is a comment body"</span>
+
+    <span class="n">user</span><span class="o">.</span><span class="n">comments</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+    <span class="n">post</span><span class="o">.</span><span class="n">comments</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">comment</span>
+</code></pre></div>
+
+<p>Don't forget the model imports:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">models.comment</span> <span class="kn">import</span> <span class="n">Comments</span>
+<span class="kn">from</span> <span class="nn">models.post</span> <span class="kn">import</span> <span class="n">Post</span>
+<span class="kn">from</span> <span class="nn">models.user</span> <span class="kn">import</span> <span class="n">User</span>
+</code></pre></div>
+
+<p>Your <em>conftest.py</em> file should now look like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">graphene</span>
+<span class="kn">import</span> <span class="nn">pytest</span>
+<span class="kn">from</span> <span class="nn">graphene.test</span> <span class="kn">import</span> <span class="n">Client</span>
+<span class="kn">from</span> <span class="nn">orator</span> <span class="kn">import</span> <span class="n">DatabaseManager</span><span class="p">,</span> <span class="n">Model</span><span class="p">,</span> <span class="n">Schema</span>
+<span class="kn">from</span> <span class="nn">orator.migrations</span> <span class="kn">import</span> <span class="n">DatabaseMigrationRepository</span><span class="p">,</span> <span class="n">Migrator</span>
+
+<span class="kn">from</span> <span class="nn">models.comment</span> <span class="kn">import</span> <span class="n">Comments</span>
+<span class="kn">from</span> <span class="nn">models.post</span> <span class="kn">import</span> <span class="n">Post</span>
+<span class="kn">from</span> <span class="nn">models.user</span> <span class="kn">import</span> <span class="n">User</span>
+<span class="kn">from</span> <span class="nn">schema</span> <span class="kn">import</span> <span class="n">Query</span><span class="p">,</span> <span class="n">Mutation</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">autouse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">setup_database</span><span class="p">():</span>
+    <span class="n">DATABASES</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"sqlite"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"driver"</span><span class="p">:</span> <span class="s2">"sqlite"</span><span class="p">,</span>
+            <span class="s2">"database"</span><span class="p">:</span> <span class="s2">"test.db"</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="n">db</span> <span class="o">=</span> <span class="n">DatabaseManager</span><span class="p">(</span><span class="n">DATABASES</span><span class="p">)</span>
+    <span class="n">Schema</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+
+    <span class="n">Model</span><span class="o">.</span><span class="n">set_connection_resolver</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+
+    <span class="n">repository</span> <span class="o">=</span> <span class="n">DatabaseMigrationRepository</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="s2">"migrations"</span><span class="p">)</span>
+    <span class="n">migrator</span> <span class="o">=</span> <span class="n">Migrator</span><span class="p">(</span><span class="n">repository</span><span class="p">,</span> <span class="n">db</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">repository</span><span class="o">.</span><span class="n">repository_exists</span><span class="p">():</span>
+        <span class="n">repository</span><span class="o">.</span><span class="n">create_repository</span><span class="p">()</span>
+
+    <span class="n">migrator</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="s2">"migrations"</span><span class="p">)</span>
+    <span class="n">migrator</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">"migrations"</span><span class="p">)</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"module"</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">client</span><span class="p">():</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">graphene</span><span class="o">.</span><span class="n">Schema</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">Query</span><span class="p">,</span> <span class="n">mutation</span><span class="o">=</span><span class="n">Mutation</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">client</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"function"</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">user</span><span class="p">():</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="p">()</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">"John Doe"</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">address</span> <span class="o">=</span> <span class="s2">"United States of Nigeria"</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">phone_number</span> <span class="o">=</span> <span class="mi">123456789</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">sex</span> <span class="o">=</span> <span class="s2">"male"</span>
+    <span class="n">user</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">user</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"function"</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="n">user</span><span class="p">):</span>
+    <span class="n">post</span> <span class="o">=</span> <span class="n">Post</span><span class="p">()</span>
+    <span class="n">post</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="s2">"Test Title"</span>
+    <span class="n">post</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="s2">"this is the post body and can be as long as possible"</span>
+
+    <span class="n">user</span><span class="o">.</span><span class="n">posts</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">post</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">post</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">"function"</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">comment</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">post</span><span class="p">):</span>
+    <span class="n">comment</span> <span class="o">=</span> <span class="n">Comments</span><span class="p">()</span>
+    <span class="n">comment</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="s2">"This is a comment body"</span>
+
+    <span class="n">user</span><span class="o">.</span><span class="n">comments</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+    <span class="n">post</span><span class="o">.</span><span class="n">comments</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">comment</span>
+</code></pre></div>
+
+<p>Now, we can start adding some test.</p>
+<p>Create a test file called  <em>test_query.py</em>, and add the following tests to test the <code>User</code> model like so:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">test_create_user</span><span class="p">(</span><span class="n">client</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="s2">"""</span>
+<span class="s2">    mutation {</span>
+<span class="s2">        createUser(userDetails: {</span>
+<span class="s2">            name: "Test User",</span>
+<span class="s2">            sex: "male",</span>
+<span class="s2">            address: "My Address",</span>
+<span class="s2">            phoneNumber: "123456789",</span>
+<span class="s2">        })</span>
+<span class="s2">        {</span>
+<span class="s2">            id</span>
+<span class="s2">            name</span>
+<span class="s2">            address</span>
+<span class="s2">        }</span>
+<span class="s2">    }</span>
+<span class="s2">    """</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s1">'data'</span><span class="p">][</span><span class="s1">'createUser'</span><span class="p">][</span><span class="s1">'id'</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s1">'data'</span><span class="p">][</span><span class="s1">'createUser'</span><span class="p">][</span><span class="s1">'name'</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"Test User"</span>
+
+
+<span class="k">def</span> <span class="nf">test_get_user_list</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">user</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="s2">"""</span>
+<span class="s2">    query {</span>
+<span class="s2">        listUsers {</span>
+<span class="s2">            name</span>
+<span class="s2">            address</span>
+<span class="s2">        }</span>
+<span class="s2">    }</span>
+<span class="s2">    """</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">'data'</span><span class="p">][</span><span class="s1">'listUsers'</span><span class="p">])</span> <span class="o">==</span> <span class="nb">list</span>
+
+
+<span class="k">def</span> <span class="nf">test_get_single_user</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">user</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="s2">"""</span>
+<span class="s2">    query {</span>
+<span class="s2">        getSingleUser(userId: </span><span class="si">%s</span><span class="s2">){</span>
+<span class="s2">            address</span>
+<span class="s2">        }</span>
+<span class="s2">    }</span>
+<span class="s2">    """</span> <span class="o">%</span> <span class="n">user</span><span class="o">.</span><span class="n">id</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s1">'data'</span><span class="p">][</span><span class="s1">'getSingleUser'</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="k">assert</span> <span class="n">result</span><span class="p">[</span><span class="s1">'data'</span><span class="p">][</span><span class="s1">'getSingleUser'</span><span class="p">][</span><span class="s1">'address'</span><span class="p">]</span> <span class="o">==</span> <span class="n">user</span><span class="o">.</span><span class="n">address</span>
+</code></pre></div>
+
+<p>Run the tests with pytest using the following command:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">(</span>env<span class="o">)</span>$ python -m pytest -s <span class="nb">test</span>
+</code></pre></div>
+
+<p>This should execute all the tests. They all should pass:</p>
+<div class="codehilite"><pre><span></span><code><span class="o">=================================</span> <span class="nb">test</span> session <span class="nv">starts</span> <span class="o">=================================</span>
+platform darwin -- Python <span class="m">3</span>.9.0, pytest-6.1.1, py-1.9.0, pluggy-0.13.1
+rootdir: /Users/michael/repos/testdriven/fastapi-graphql
+collected <span class="m">3</span> items
+
+test/test_query.py ...
+
+<span class="o">==================================</span> <span class="m">3</span> passed <span class="k">in</span> <span class="m">0</span>.05s <span class="o">==================================</span>
+</code></pre></div>
+
+<p>Following the same concept, write tests for <code>Post</code> and <code>Comment</code> on your own.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>In this tutorial, we covered how to develop and test a GraphQL API with FastAPI, Orator ORM, and pytest.</p>
+<p>We looked at how to wire up Orator ORM and Postgres along with FastAPI and GraphQL via Graphene. We also covered how to create GraphQL Schemas, Queries, and Mutations. Finally, we tested our  GraphQL API with pytest.</p>
+<p>Grab the code from the <a href="https://github.com/testdrivenio/fastapi-graphql">fastapi-graphql</a> repo.</p>
+  </div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+
+<!-- JavaScript -->
+<script src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+<script src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+<script src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/bootstrap.min.js" integrity="sha384-o+RDsa0aLu++PJvFqy8fFScvbHFLtbvScb8AjopnFD+iEQ7wo/CG0xlczd+2O/em" crossorigin="anonymous"></script>
+<script src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/utils.9c5895000f5e.js"></script>
+
+    
+
+  <script>
+    if ('loading' in HTMLImageElement.prototype) {
+      const images = document.querySelectorAll('img[loading="lazy"]');
+      images.forEach(img => {
+        img.src = img.dataset.src;
+      });
+    } else {
+      // Dynamically import the LazySizes library
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lazysizes/5.2.0/lazysizes.min.js';
+      document.body.appendChild(script);
+    }
+  </script>
+
+  <script src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/jquery.waypoints.min.7d05f92297de.js"></script>
+  <script async="" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/local-nav.59f7ef518a39.js"></script>
+  <script async="" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/blog-related-posts.57781d2e9f47.js"></script>
+  <script async="" src="./Developing an API with FastAPI and GraphQL _ TestDriven.io_files/blog-sticky-cta.1b87193fa49b.js"></script>
+
+</body>
+</html>
